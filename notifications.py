@@ -1,9 +1,11 @@
 #!/usr/bin/python
-from gi.repository import Gdk, Gtk, AppIndicator3 as AppIndicator
+import dbus
 import time
+from dbus.mainloop.glib import DBusGMainLoop
+from gi.repository import Gdk, Gtk, AppIndicator3 as AppIndicator
 
 window = None
-list_store = Gtk.ListStore(int, str, str)
+tree_store = Gtk.TreeStore(int, str)
 
 def display_window(button):
   global window
@@ -28,17 +30,14 @@ def display_window(button):
   header_bar.props.title = "Notifications"
   window.set_titlebar(header_bar)
 
-  tree_view = Gtk.TreeView(list_store)
+  tree_view = Gtk.TreeView(tree_store)
   column = Gtk.TreeViewColumn("Event")
   date_time = Gtk.CellRendererText()
-  app_name = Gtk.CellRendererText()
   event_string = Gtk.CellRendererText()
   column.pack_start(date_time, True)
-  column.pack_start(app_name, True)
   column.pack_start(event_string, True)
   column.add_attribute(date_time, "text", 0)
-  column.add_attribute(app_name, "text", 1)
-  column.add_attribute(event_string, "text", 2)
+  column.add_attribute(event_string, "text", 1)
   tree_view.append_column(column)
   window.add(tree_view)
 
@@ -59,31 +58,33 @@ def setup_menu(indicator):
   menu.set_events(Gdk.EventMask.BUTTON_PRESS_MASK)
   return menu
 
+def record_notification(app_name, message):
+  app_row = [row for row in tree_store if row[1] == app_name]
+  app_row = app_row[0] if len(app_row) else tree_store.append(None, [0, app_name])
+  tree_store.append(app_row.iter, [int(time.mktime(time.gmtime())), message])
+  #Gtk.main_iteration_do(True)
 
-indicator = AppIndicator.Indicator.new(
-  "Notifications",
-  "/home/kzar/code/notifications/bars.png",
-  AppIndicator.IndicatorCategory.APPLICATION_STATUS
-)
-indicator.set_status(AppIndicator.IndicatorStatus.ACTIVE)
-indicator.set_menu(setup_menu(indicator))
-
-import dbus
-from dbus.mainloop.glib import DBusGMainLoop
-
-def log_notification(bus, message):
+def receive_notifications(bus, message):
   keys = ["app_name", "replaces_id", "app_icon", "summary",
           "body", "actions", "hints", "expire_timeout"]
   args = message.get_args_list()
   if len(args) == 8:
     notification = dict([(keys[i], args[i]) for i in range(8)])
-    list_store.append([int(time.mktime(time.gmtime())),
-                       notification["app_name"], notification["summary"] + " " + notification["body"]])
-    print notification["summary"], notification["body"]
+    record_notification(notification["app_name"],
+                        notification["summary"] + " " + notification["body"])
 
-loop = DBusGMainLoop(set_as_default=True)
-session_bus = dbus.SessionBus()
-session_bus.add_match_string("type='method_call',interface='org.freedesktop.Notifications',member='Notify',eavesdrop=true")
-session_bus.add_message_filter(log_notification)
+if __name__ == "__main__":
+  indicator = AppIndicator.Indicator.new(
+    "Notifications",
+    "/home/kzar/code/notifications/bars.png",
+    AppIndicator.IndicatorCategory.APPLICATION_STATUS
+  )
+  indicator.set_status(AppIndicator.IndicatorStatus.ACTIVE)
+  indicator.set_menu(setup_menu(indicator))
 
-Gtk.main()
+  loop = DBusGMainLoop(set_as_default=True)
+  session_bus = dbus.SessionBus()
+  session_bus.add_match_string("type='method_call',interface='org.freedesktop.Notifications',member='Notify',eavesdrop=true")
+  session_bus.add_message_filter(receive_notifications)
+
+  Gtk.main()
