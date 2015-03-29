@@ -35,17 +35,17 @@ def setup_window():
   tree_view = Gtk.TreeView(notifications)
   tree_view.set_headers_visible(False)
   column = Gtk.TreeViewColumn("Event")
-  date_time = Gtk.CellRendererText()
 
   event_string = Gtk.CellRendererText()
   event_string.set_property("wrap_width", 30)
   event_string.set_property("wrap_mode", Pango.WrapMode.WORD)
   event_string.set_property("width", 250)
+  date_time = Gtk.CellRendererText()
 
-  column.pack_start(date_time, True)
   column.pack_start(event_string, True)
-  column.add_attribute(date_time, "text", 0)
+  column.pack_start(date_time, True)
   column.add_attribute(event_string, "markup", 1)
+  column.add_attribute(date_time, "text", 0)
   tree_view.append_column(column)
   window.add(tree_view)
 
