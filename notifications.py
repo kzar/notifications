@@ -47,10 +47,11 @@ def setup_window():
   column.add_attribute(event_string, "markup", 1)
   column.add_attribute(date_time, "text", 0)
   tree_view.append_column(column)
+  tree_view.set_show_expanders(False)
+  notifications.connect('row-has-child-toggled', lambda *args: tree_view.expand_all())
+
   window.add(tree_view)
-
   window.connect('delete-event', lambda w, e: w.hide() or True)
-
   window.set_type_hint(Gdk.WindowTypeHint.DOCK)
 
 def display_window(button):
