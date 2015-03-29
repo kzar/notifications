@@ -21,9 +21,12 @@ def display_window(button):
   for i in range(active_monitor_n + 1):
     monitor_geometry = screen.get_monitor_geometry(i)
     left_offset += monitor_geometry.width
+  top_offset = monitor_geometry.y
 
-  window.set_size_request(400, monitor_geometry.height)
-  window.move(left_offset - 400, 0)
+  window.set_size_request(400, monitor_geometry.height - 24)
+  window.move(left_offset - 400, top_offset + 24)
+
+  window.set_opacity(0.9)
 
   header_bar = Gtk.HeaderBar()
   header_bar.set_show_close_button(True)
@@ -31,6 +34,7 @@ def display_window(button):
   window.set_titlebar(header_bar)
 
   tree_view = Gtk.TreeView(tree_store)
+  tree_view.set_headers_visible(False)
   column = Gtk.TreeViewColumn("Event")
   date_time = Gtk.CellRendererText()
   event_string = Gtk.CellRendererText()
@@ -41,8 +45,7 @@ def display_window(button):
   tree_view.append_column(column)
   window.add(tree_view)
 
-  window.set_keep_above(True)
-  #window.set_decorated(False)
+  window.set_type_hint(Gdk.WindowTypeHint.DOCK)
   window.show_all()
 
 def setup_menu(indicator):
@@ -62,7 +65,6 @@ def record_notification(app_name, message):
   app_row = [row for row in tree_store if row[1] == app_name]
   app_row = app_row[0] if len(app_row) else tree_store.append(None, [0, app_name])
   tree_store.append(app_row.iter, [int(time.mktime(time.gmtime())), message])
-  #Gtk.main_iteration_do(True)
 
 def receive_notifications(bus, message):
   keys = ["app_name", "replaces_id", "app_icon", "summary",
