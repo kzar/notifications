@@ -12,11 +12,14 @@ class NotificationStore(Gtk.TreeStore):
     super(NotificationStore, self).__init__(int, str)
 
   def log_notification(self, app_name, title, message):
-    if app_name not in self.applications:
-      self.applications[app_name] = self.append(None, [0, app_name])
-    now = int(time.mktime(time.gmtime()))
-    self.prepend(self.applications[app_name],
-                 [now, "<b>%s</b>\n%s" % (title, message)])
+    title = title.strip()
+    message = message.strip()
+    if title or message:
+      if app_name not in self.applications:
+        self.applications[app_name] = self.append(None, [0, app_name])
+      now = int(time.mktime(time.gmtime()))
+      self.prepend(self.applications[app_name],
+                   [now, "<b>%s</b>\n%s" % (title, message)])
 
 window = Gtk.Window()
 notifications = NotificationStore()
