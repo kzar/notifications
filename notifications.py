@@ -2,7 +2,7 @@
 import dbus
 import time
 from dbus.mainloop.glib import DBusGMainLoop
-from gi.repository import Gdk, Gtk, AppIndicator3 as AppIndicator
+from gi.repository import Gdk, Gtk, Pango, AppIndicator3 as AppIndicator
 
 class NotificationStore(Gtk.TreeStore):
   __gtype_name__ = 'NotificationStore'
@@ -11,11 +11,12 @@ class NotificationStore(Gtk.TreeStore):
     self.applications = {}
     super(NotificationStore, self).__init__(int, str)
 
-  def log_notification(self, app_name, message):
+  def log_notification(self, app_name, title, message):
     if app_name not in self.applications:
       self.applications[app_name] = self.append(None, [0, app_name])
     now = int(time.mktime(time.gmtime()))
-    self.append(self.applications[app_name], [now, message])
+    self.prepend(self.applications[app_name],
+                 [now, "<b>%s</b>\n%s" % (title, message)])
 
 window = Gtk.Window()
 notifications = NotificationStore()
@@ -32,11 +33,16 @@ def setup_window():
   tree_view.set_headers_visible(False)
   column = Gtk.TreeViewColumn("Event")
   date_time = Gtk.CellRendererText()
+
   event_string = Gtk.CellRendererText()
+  event_string.set_property("wrap_width", 30)
+  event_string.set_property("wrap_mode", Pango.WrapMode.WORD)
+  event_string.set_property("width", 250)
+
   column.pack_start(date_time, True)
   column.pack_start(event_string, True)
   column.add_attribute(date_time, "text", 0)
-  column.add_attribute(event_string, "text", 1)
+  column.add_attribute(event_string, "markup", 1)
   tree_view.append_column(column)
   window.add(tree_view)
 
@@ -83,7 +89,8 @@ def receive_notifications(bus, message):
     notification = dict([(keys[i], args[i]) for i in range(8)])
     notifications.log_notification(
       notification["app_name"],
-      notification["summary"] + " " + notification["body"]
+      notification["summary"],
+      notification["body"]
     )
 
 if __name__ == "__main__":
