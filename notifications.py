@@ -4,28 +4,23 @@ import time
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import Gdk, Gtk, AppIndicator3 as AppIndicator
 
-window = None
-tree_store = Gtk.TreeStore(int, str)
+class NotificationStore(Gtk.TreeStore):
+  __gtype_name__ = 'NotificationStore'
 
-def display_window(button):
-  global window
-  if window:
-    window.close()
+  def __init__(self):
+    self.applications = {}
+    super(NotificationStore, self).__init__(int, str)
 
-  window = Gtk.Window()
-  screen = window.get_screen()
-  pointer = screen.get_root_window().get_pointer()
-  active_monitor_n = screen.get_monitor_at_point(pointer[1], pointer[2])
+  def log_notification(self, app_name, message):
+    if app_name not in self.applications:
+      self.applications[app_name] = self.append(None, [0, app_name])
+    now = int(time.mktime(time.gmtime()))
+    self.append(self.applications[app_name], [now, message])
 
-  left_offset = 0
-  for i in range(active_monitor_n + 1):
-    monitor_geometry = screen.get_monitor_geometry(i)
-    left_offset += monitor_geometry.width
-  top_offset = monitor_geometry.y
+window = Gtk.Window()
+notifications = NotificationStore()
 
-  window.set_size_request(400, monitor_geometry.height - 24)
-  window.move(left_offset - 400, top_offset + 24)
-
+def setup_window():
   window.set_opacity(0.9)
 
   header_bar = Gtk.HeaderBar()
@@ -33,7 +28,7 @@ def display_window(button):
   header_bar.props.title = "Notifications"
   window.set_titlebar(header_bar)
 
-  tree_view = Gtk.TreeView(tree_store)
+  tree_view = Gtk.TreeView(notifications)
   tree_view.set_headers_visible(False)
   column = Gtk.TreeViewColumn("Event")
   date_time = Gtk.CellRendererText()
@@ -45,7 +40,26 @@ def display_window(button):
   tree_view.append_column(column)
   window.add(tree_view)
 
+  window.connect('delete-event', lambda w, e: w.hide() or True)
+
   window.set_type_hint(Gdk.WindowTypeHint.DOCK)
+
+def display_window(button):
+  # Figure out which monitor we should display the notification window on
+  screen = window.get_screen()
+  pointer = screen.get_root_window().get_pointer()
+  active_monitor_n = screen.get_monitor_at_point(pointer[1], pointer[2])
+  # Position and resize the notification window appropriately on the right
+  # hand side of the current monitor.
+  # (FIXME avoid hard coding the Ubuntu top-bar height of 24px!)
+  left_offset = 0
+  for i in range(active_monitor_n + 1):
+    monitor_geometry = screen.get_monitor_geometry(i)
+    left_offset += monitor_geometry.width
+  top_offset = monitor_geometry.y
+  window.set_size_request(400, monitor_geometry.height - 24)
+  window.move(left_offset - 400, top_offset + 24)
+  # Now that the window's ready, we can display it!
   window.show_all()
 
 def setup_menu(indicator):
@@ -61,19 +75,16 @@ def setup_menu(indicator):
   menu.set_events(Gdk.EventMask.BUTTON_PRESS_MASK)
   return menu
 
-def record_notification(app_name, message):
-  app_row = [row for row in tree_store if row[1] == app_name]
-  app_row = app_row[0] if len(app_row) else tree_store.append(None, [0, app_name])
-  tree_store.append(app_row.iter, [int(time.mktime(time.gmtime())), message])
-
 def receive_notifications(bus, message):
   keys = ["app_name", "replaces_id", "app_icon", "summary",
           "body", "actions", "hints", "expire_timeout"]
   args = message.get_args_list()
   if len(args) == 8:
     notification = dict([(keys[i], args[i]) for i in range(8)])
-    record_notification(notification["app_name"],
-                        notification["summary"] + " " + notification["body"])
+    notifications.log_notification(
+      notification["app_name"],
+      notification["summary"] + " " + notification["body"]
+    )
 
 if __name__ == "__main__":
   indicator = AppIndicator.Indicator.new(
@@ -83,6 +94,8 @@ if __name__ == "__main__":
   )
   indicator.set_status(AppIndicator.IndicatorStatus.ACTIVE)
   indicator.set_menu(setup_menu(indicator))
+
+  setup_window()
 
   loop = DBusGMainLoop(set_as_default=True)
   session_bus = dbus.SessionBus()
