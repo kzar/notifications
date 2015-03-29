@@ -17,7 +17,9 @@ class NotificationStore(Gtk.TreeStore):
     message = cgi.escape(message.strip())
     if title or message:
       if app_name not in self.applications:
-        self.applications[app_name] = self.append(None, [0, app_name])
+        self.applications[app_name] = self.append(
+          None, [0, "<big>%s</big>" % app_name]
+        )
       now = int(time.mktime(time.gmtime()))
       self.prepend(self.applications[app_name],
                    [now, "<b>%s</b>\n%s" % (title, message)])
