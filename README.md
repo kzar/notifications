@@ -8,6 +8,8 @@ So far I'm half way through an extremely rough proof of concept. When the basics
 
 ## License
 
+Icon is copyright the of [James Creixems](https://webjac.com). (He kindly created it for this project!)
+
 Source code is released under GPLv3
 
     This program is free software: you can redistribute it and/or modify

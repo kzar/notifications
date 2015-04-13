@@ -103,7 +103,7 @@ def receive_notifications(bus, message):
 if __name__ == "__main__":
   indicator = AppIndicator.Indicator.new(
     "Notifications",
-    "/home/kzar/code/notifications/bars.png",
+    "/home/kzar/code/notifications/notifications.png",
     AppIndicator.IndicatorCategory.APPLICATION_STATUS
   )
   indicator.set_status(AppIndicator.IndicatorStatus.ACTIVE)
